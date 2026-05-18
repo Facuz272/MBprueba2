@@ -1475,8 +1475,8 @@ const Hero = () => {
       {/*
         Background VIDEO — z-index POSITIVO (0) para que el navegador no lo
         empuje detrás del body var(--dark). autoplay + muted + playsinline
-        son obligatorios para iOS. Source: nuevo MP4 optimizado del cliente
-        en /images/video nuevo.mp4 (5.8MB, el browser URL-encodea el espacio).
+        son obligatorios para iOS. Source: Portadarediseno.mp4 (2.3 MB,
+        final del cliente — más liviano que el video nuevo anterior).
       */}
       <video
         autoPlay
@@ -1485,8 +1485,8 @@ const Hero = () => {
         playsInline
         preload="auto"
         /* poster: still cinematic frame que se pinta INSTANTÁNEAMENTE
-           mientras el MP4 (5.8MB) buffea. Mejora LCP en conexiones
-           lentas y evita el "flash negro" del 1er paint. */
+           mientras el MP4 buffea. Mejora LCP en conexiones lentas y
+           evita el "flash negro" del 1er paint. */
         poster={`${IMG}/roof-tile-cinematic.jpg`}
         aria-hidden="true"
         style={{
@@ -1499,7 +1499,7 @@ const Hero = () => {
           zIndex: 0,
         }}
       >
-        <source src={`${IMG}/video nuevo.mp4`} type="video/mp4" />
+        <source src={`${IMG}/Portadarediseno.mp4`} type="video/mp4" />
       </video>
 
       {/*
