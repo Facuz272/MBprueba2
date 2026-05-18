@@ -2283,29 +2283,14 @@ const ProcessSection = () => {
                     style={{ background: "linear-gradient(to bottom, rgba(13,79,114,0.15) 0%, rgba(13,79,114,0.78) 100%)" }}
                   />
 
-                  {/* Large outline step number */}
-                  <div className="absolute top-3 right-4 leading-none select-none pointer-events-none">
-                    <span
-                      className="font-display italic"
-                      style={{
-                        fontSize: "6.5rem",
-                        lineHeight: 1,
-                        color: "transparent",
-                        WebkitTextStroke: "1.5px rgba(255,255,255,0.18)",
-                      }}
-                    >
-                      {s.num}
-                    </span>
-                  </div>
+                  {/* Large outline step number — REMOVED per client request.
+                      The big italic "01/02/03" watermark in the top-right
+                      of each photo is gone for a cleaner image. */}
 
-                  {/* Step pill bottom-left */}
+                  {/* Step pill bottom-left — orange circle REMOVED per client
+                      request; the "STEP 01/02/03" text label stays as the
+                      only step indicator on the image. */}
                   <div className="absolute bottom-4 left-4 flex items-center gap-2">
-                    <span
-                      className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-extrabold text-white"
-                      style={{ background: "var(--orange)", boxShadow: "0 4px 12px rgba(255,107,31,0.5)" }}
-                    >
-                      {i + 1}
-                    </span>
                     <span
                       className="text-[10px] font-bold uppercase tracking-[0.2em]"
                       style={{ color: "rgba(255,255,255,0.7)" }}
