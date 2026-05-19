@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { ViteImageOptimizer } from 'vite-plugin-image-optimizer';
 import sharp from 'sharp';
 import { readdir, stat, writeFile, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
@@ -23,30 +22,35 @@ sharp.concurrency(1);
 sharp.cache({ memory: 64, items: 50, files: 0 });
 
 /* ----------------------------------------------------------------------
- * Custom plugin: resizeOversizeImages
+ * Custom plugin: optimizeImages
  * ----------------------------------------------------------------------
- * vite-plugin-image-optimizer only re-encodes; it does NOT resize. Most
- * of our source photos are 3000–4000 px wide but are displayed at
- * max ~1000 px (B/A slider) or ~400 px (service card). Re-encoding at
- * q:78 saved ~13 %; resizing to 2000 px and recompressing saves 70–90 %
- * on those same files.
+ * Single, race-free image-optimization pass. Replaces the previous
+ * 2-stage pipeline (vite-plugin-image-optimizer + resizeOversizeImages),
+ * which had a destructive race: both ran in closeBundle and both wrote
+ * to the same destination paths. The result was non-deterministic
+ * 0-byte JPEGs on disk for whichever files happened to be in flight
+ * during the overlap. Two distinct files were observed bricked in
+ * production this way (request your quote.jpeg, then We schedule the
+ * job .jpeg after the first fix).
  *
- * SAFETY (post-bus-error)
- *   - Strictly sequential file processing (for…of with await per file).
- *   - One sharp() instance per file, explicitly destroyed via `.destroy()`
- *     after the toBuffer() resolves so libvips releases its mapped pages
- *     before the next file allocates new ones.
- *   - try/catch around the whole per-file block: a bad image logs and
- *     skips, never aborts the build.
- *   - Skips files already small + within the target width — fewer sharp
- *     allocations on warm cache.
+ * THIS plugin is the only writer. It:
+ *   - Walks dist/images/ sequentially after Vite copies public/* over.
+ *   - For each JPEG/PNG: re-encodes at quality 78–80 with mozjpeg
+ *     (matches what the upstream package did), AND resizes to
+ *     MAX_WIDTH if the source is wider (the new value-add).
+ *   - Writes to a unique temp file and rename()s atomically into
+ *     place, so even if anything ever runs concurrently the final
+ *     file is always either the previous version or the full new one.
+ *   - Never throws upward: bad images log and skip, build never fails.
+ *
+ * sharp is pinned to a single thread + tiny cache so we don't ever
+ * trip the SIGBUS / libvips memory-pressure path we hit earlier.
  * --------------------------------------------------------------------*/
 const MAX_WIDTH = 2000;
-const SKIP_IF_UNDER = 350_000; // bytes — file is already lean
 
-function resizeOversizeImages() {
+function optimizeImages() {
   return {
-    name: 'mb-resize-oversize-images',
+    name: 'mb-optimize-images',
     apply: 'build',
     async closeBundle() {
       const root = path.resolve('dist/images');
@@ -55,19 +59,13 @@ function resizeOversizeImages() {
       const optimizeOne = async (full) => {
         const before = (await stat(full)).size;
 
-        // Cheap metadata read — uses a small sharp instance we tear down.
+        // Metadata read on a short-lived sharp instance.
         let metaInstance = sharp(full, { failOn: 'none' });
         let meta;
         try {
           meta = await metaInstance.metadata();
         } finally {
           if (typeof metaInstance.destroy === 'function') metaInstance.destroy();
-        }
-
-        // Early-out if nothing to do.
-        if ((!meta.width || meta.width <= MAX_WIDTH) && before < SKIP_IF_UNDER) {
-          skipped++;
-          return;
         }
 
         // Real optimization pipeline — fresh sharp instance, single-use.
@@ -82,22 +80,22 @@ function resizeOversizeImages() {
             : pipe.png({ compressionLevel: 9, palette: true });
 
           const buf = await encoded.toBuffer();
+          if (buf.length === 0) {
+            // Hard guard: never overwrite a real file with an empty buffer,
+            // no matter how the encoder behaves.
+            skipped++;
+            return;
+          }
           if (buf.length < before) {
-            /* ATOMIC WRITE: vite-plugin-image-optimizer can still be
-               flushing its own output to the same destination at this
-               point in closeBundle. A plain writeFile(full, buf) can
-               race with that flush and end up truncated to 0 bytes
-               (observed reliably on a 3840x5120 JPEG). Writing to a
-               unique temp path and rename-ing is atomic on POSIX
-               filesystems — the rename swaps the inode, so the final
-               file is either the old one or the full new one, never
-               an empty intermediate. */
+            /* ATOMIC WRITE via temp + rename. Even with no other writer
+               in play, this also protects against partial writes on
+               crash / SIGINT mid-build — the destination either holds
+               the previous version or the full new one, never half. */
             const tmp = `${full}.opt-${process.pid}-${Date.now()}.tmp`;
             try {
               await writeFile(tmp, buf);
               await rename(tmp, full);
             } catch (renameErr) {
-              // Best-effort cleanup if the rename failed mid-flight.
               try { await unlink(tmp); } catch {}
               throw renameErr;
             }
@@ -122,6 +120,8 @@ function resizeOversizeImages() {
           const full = path.join(dir, e.name);
           if (e.isDirectory()) { await walk(full); continue; }
           if (!/\.(jpe?g|png)$/i.test(e.name)) continue;
+          // Skip any leftover temp files from previous interrupted builds.
+          if (/\.opt-\d+-\d+\.tmp$/.test(e.name)) continue;
           try {
             await optimizeOne(full);
           } catch (err) {
@@ -134,7 +134,7 @@ function resizeOversizeImages() {
       await walk(root);
       const mb = (saved / 1024 / 1024).toFixed(2);
       console.log(
-        `\n📐 resizeOversizeImages: ${count} written, ${skipped} skipped, ${errored} errored, saved ${mb} MB`
+        `\n📐 optimizeImages: ${count} written, ${skipped} skipped, ${errored} errored, saved ${mb} MB`
       );
     },
   };
@@ -146,55 +146,22 @@ function resizeOversizeImages() {
  * Build pipeline:
  *   vite build
  *     → copies public/* to dist/*
- *     → vite-plugin-image-optimizer compresses (in-place re-encode only)
- *     → resizeOversizeImages plugin downsizes huge JPEGs to MAX_WIDTH
+ *     → optimizeImages plugin re-encodes + resizes in one race-free pass
  *
- * `base: './'` produces relative asset paths so dist/ can be hosted from
- * any subpath. `build.target: 'es2020'` matches modern browsers + iOS 14+.
+ * `base: '/'` for the custom domain (mbsoftwashmiami.com) so asset
+ * URLs are written at the apex root. `build.target: 'es2020'` matches
+ * modern browsers + iOS 14+.
  * --------------------------------------------------------------------*/
 export default defineConfig({
   /* Custom domain (mbsoftwashmiami.com) lives at the DOMAIN ROOT, so
      every Vite-managed absolute asset URL must be prefixed with `/`
-     (no subpath). Previously this was '/MBprueba2/' for the GH Pages
-     project URL (https://Facuz272.github.io/MBprueba2/); after the
-     CNAME was wired up the site serves at the apex domain instead,
-     and asset paths like /MBprueba2/assets/main-[hash].js 404'd —
-     producing the infinite "LOADING..." spinner because the JS bundle
-     never loaded.
-     A `public/CNAME` file is shipped on every build so the custom
-     domain configuration on GitHub Pages survives each redeploy. */
+     (no subpath). A public/CNAME file is shipped on every build so
+     the custom domain configuration on GitHub Pages survives each
+     redeploy. */
   base: '/',
   plugins: [
     react(),
-    ViteImageOptimizer({
-      includePublic: true,
-      logStats: true,
-
-      /* JPEG: mozjpeg encoder, q:78 — visually identical to source for
-         outdoor cleaning photos. progressive=true so the browser paints
-         a low-res preview while the full image streams. */
-      jpeg: { quality: 78, progressive: true, mozjpeg: true },
-      jpg:  { quality: 78, progressive: true, mozjpeg: true },
-
-      /* PNG: lossless palette + max zlib compression. */
-      png:  { quality: 80, compressionLevel: 9, palette: true },
-
-      /* WebP and AVIF intentionally disabled.
-         Reasons:
-         1) AVIF encoding is extremely CPU- and memory-heavy. With
-            sharp pinned to 1 thread (above) it works, but pre-fix this
-            was a likely SIGBUS trigger.
-         2) Nothing on the page actually consumes the .webp/.avif siblings
-            — our <img> tags reference the .jpeg directly, with no
-            <picture> source-set fallback. Generating them is wasted disk
-            + build time. Re-enable if/when we wire up <picture>. */
-
-      /* Cache so repeated `npm run build` doesn't re-encode unchanged
-         files. Speeds incremental builds from ~30 s → ~5 s. */
-      cache: true,
-      cacheLocation: 'node_modules/.cache/vite-plugin-image-optimizer',
-    }),
-    resizeOversizeImages(),
+    optimizeImages(),
   ],
   build: {
     target: 'es2020',
