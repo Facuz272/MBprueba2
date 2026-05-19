@@ -3028,8 +3028,13 @@ const ResultsSection = () => {
     { tabId: "exterior-window",   title: "Second-story exterior glass restoration before and after",  subtitle: "Before / After", alt: "Second-story exterior glass restoration before and after",  before: `${IMG}/exterior window cleaning/exterior antes 3.jpeg`,  after: `${IMG}/exterior window cleaning/exterior despues 3.jpeg` },
 
     /* ---------- Solar Panel Cleaning (2 slides) ---------- */
-    { tabId: "solar-panels",      title: "Roof-mounted panels",        subtitle: "Pinecrest, FL",     before: `${IMG}/roof-tile-before.jpg`,           after: `${IMG}/roof-tile-after.jpg` },
-    { tabId: "solar-panels",      title: "Solar array refresh",        subtitle: "Palmetto Bay, FL",  before: `${IMG}/solar-panel-cleaning.jpeg`,      after: `${IMG}/roof-tile-after.jpg` },
+    /* ---------- Solar Panel Cleaning (2 slides — fotos reales del cliente) ----------
+       Assets en ./images/solar panel/. Filenames preserved exactly as
+       uploaded — mind the trailing-space-before-extension quirk that
+       three of the four files carry. The browser URL-encodes the
+       spaces at fetch time. Case-sensitive on Linux (gh-pages). */
+    { tabId: "solar-panels",      title: "Rooftop solar array",        subtitle: "Before / After",    before: `${IMG}/solar panel/solar antes 1 .jpeg`, after: `${IMG}/solar panel/solar despues 1.jpeg` },
+    { tabId: "solar-panels",      title: "Panel dust & grime removal", subtitle: "Before / After",    before: `${IMG}/solar panel/solar antes 2 .jpeg`, after: `${IMG}/solar panel/solar despues 2 .jpeg` },
 
     /* ---------- Paver/Concrete Sealing (3 slides — fotos reales del cliente) ----------
        Assets en ./images/paver/. Los nombres con un espacio antes de .jpeg
