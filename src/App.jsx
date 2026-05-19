@@ -2429,6 +2429,20 @@ const ServiceIcons = {
       <path d="M18 14l0.9 2.1L21 17l-2.1 0.9L18 20l-0.9-2.1L15 17l2.1-0.9z" />
     </svg>
   ),
+  /* "Commercial" — office building icon: rectángulo tall + grilla de
+     ventanas + entrada inferior. Sugiere shops / commercial properties. */
+  commercial: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 md:w-7 md:h-7">
+      <rect x="4" y="3" width="16" height="18" />
+      <line x1="8" y1="7" x2="10" y2="7" />
+      <line x1="14" y1="7" x2="16" y2="7" />
+      <line x1="8" y1="11" x2="10" y2="11" />
+      <line x1="14" y1="11" x2="16" y2="11" />
+      <line x1="8" y1="15" x2="10" y2="15" />
+      <line x1="14" y1="15" x2="16" y2="15" />
+      <rect x="10.5" y="18" width="3" height="3" />
+    </svg>
+  ),
 };
 
 const OurServices = () => {
@@ -2491,6 +2505,16 @@ const OurServices = () => {
       img: `${IMG}/Much More.jpeg`,
       alt: "MB Softwash additional specialized cleaning services.",
     },
+    /* "Comercial Exterior Cleaning" — card 9 del carousel, placed after
+       Much More. Foto + copy reales del cliente. Filename preserva el
+       espacio + extensión .JPG mayúscula tal cual la subió el cliente. */
+    {
+      title: "Comercial Exterior Cleaning",
+      copy: "From boutique shops to expansive commercial developments, we do it all. We provide top-tier pressure washing and premium softwashing tailored specifically to your property's needs and schedule. One call protects your business's curb appeal reach out today.",
+      icon: ServiceIcons.commercial,
+      img: `${IMG}/comercial exterior cleaning.JPG`,
+      alt: "MB Softwash commercial exterior cleaning for storefronts and commercial properties.",
+    },
   ];
 
   /*
@@ -2546,7 +2570,7 @@ const OurServices = () => {
             className="text-base md:text-lg max-w-2xl mx-auto leading-relaxed font-medium"
             style={{ color: "rgba(255,255,255,0.85)" }}
           >
-            Eight specialized services for residential and commercial properties across Miami-Dade and South Florida.
+            Nine specialized services for residential and commercial properties across Miami-Dade and South Florida.
           </p>
         </div>
 
