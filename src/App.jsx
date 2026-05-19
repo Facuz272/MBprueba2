@@ -2494,26 +2494,28 @@ const OurServices = () => {
       img: `${IMG}/paver-concrete-sealing.jpeg`,
       alt: "Professional paver and concrete sealing by MB Softwash",
     },
-    /* "Much More" — card final del carousel/grid. Cubre los servicios
-       especializados que no encajan en una categoría principal: rust
-       removal, dumpster pad sanitation, deck restoration, holiday
-       lighting, etc. Es la red de seguridad para "todo lo demás". */
-    {
-      title: "Much More",
-      copy: "From the smallest detailing job to massive community projects, we do it all. Don’t stress over the grime—just give us a call and we’ll take complete care of all your exterior cleaning and specialty softwashing needs.",
-      icon: ServiceIcons.much,
-      img: `${IMG}/Much More.jpeg`,
-      alt: "MB Softwash additional specialized cleaning services.",
-    },
-    /* "Comercial Exterior Cleaning" — card 9 del carousel, placed after
-       Much More. Foto + copy reales del cliente. Filename preserva el
-       espacio + extensión .JPG mayúscula tal cual la subió el cliente. */
+    /* "Comercial Exterior Cleaning" — card 8 del carousel, sits between
+       Paver/Concrete Sealing y Much More. Foto + copy reales del cliente.
+       Filename preserva el espacio + extensión .JPG mayúscula tal cual
+       la subió el cliente. */
     {
       title: "Comercial Exterior Cleaning",
       copy: "From boutique shops to expansive commercial developments, we do it all. We provide top-tier pressure washing and premium softwashing tailored specifically to your property's needs and schedule. One call protects your business's curb appeal reach out today.",
       icon: ServiceIcons.commercial,
       img: `${IMG}/comercial exterior cleaning.JPG`,
       alt: "MB Softwash commercial exterior cleaning for storefronts and commercial properties.",
+    },
+    /* "Much More" — ÚLTIMA card del carousel/grid, red de seguridad para
+       todo lo que no encaja en una categoría principal: rust removal,
+       dumpster pad sanitation, deck restoration, holiday lighting, etc.
+       Intencionalmente al final del array para cerrar el carousel con un
+       catch-all CTA. */
+    {
+      title: "Much More",
+      copy: "From the smallest detailing job to massive community projects, we do it all. Don’t stress over the grime—just give us a call and we’ll take complete care of all your exterior cleaning and specialty softwashing needs.",
+      icon: ServiceIcons.much,
+      img: `${IMG}/Much More.jpeg`,
+      alt: "MB Softwash additional specialized cleaning services.",
     },
   ];
 
