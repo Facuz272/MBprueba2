@@ -6,26 +6,97 @@ import { readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 /* ----------------------------------------------------------------------
+ * GLOBAL sharp tuning
+ * ----------------------------------------------------------------------
+ * sharp wraps libvips, which by default spins up one worker thread per
+ * physical core. With 50+ photos in flight that means many concurrent
+ * native-memory mapped allocations — on macOS this can produce SIGBUS
+ * ("bus error") if the page mapper hits a misaligned region or runs out
+ * of contiguous virtual address space.
+ *
+ * We pin to ONE thread so processing is fully serial inside libvips,
+ * AND set an explicit small RAM cap so libvips releases buffers between
+ * images instead of accumulating them. Build time barely changes (we're
+ * already serial at the JS layer); the trade-off is stability.
+ * --------------------------------------------------------------------*/
+sharp.concurrency(1);
+sharp.cache({ memory: 64, items: 50, files: 0 });
+
+/* ----------------------------------------------------------------------
  * Custom plugin: resizeOversizeImages
  * ----------------------------------------------------------------------
  * vite-plugin-image-optimizer only re-encodes; it does NOT resize. Most
  * of our source photos are 3000–4000 px wide but are displayed at
  * max ~1000 px (B/A slider) or ~400 px (service card). Re-encoding at
- * q:78 saved ~13%; resizing to 2000 px and recompressing saves 70–90 %
+ * q:78 saved ~13 %; resizing to 2000 px and recompressing saves 70–90 %
  * on those same files.
  *
- * This plugin runs at `closeBundle`, AFTER vite-plugin-image-optimizer
- * has finished, so we get the best of both: the upstream plugin handles
- * small files + PNGs efficiently, and this pass handles the big photos.
+ * SAFETY (post-bus-error)
+ *   - Strictly sequential file processing (for…of with await per file).
+ *   - One sharp() instance per file, explicitly destroyed via `.destroy()`
+ *     after the toBuffer() resolves so libvips releases its mapped pages
+ *     before the next file allocates new ones.
+ *   - try/catch around the whole per-file block: a bad image logs and
+ *     skips, never aborts the build.
+ *   - Skips files already small + within the target width — fewer sharp
+ *     allocations on warm cache.
  * --------------------------------------------------------------------*/
 const MAX_WIDTH = 2000;
+const SKIP_IF_UNDER = 350_000; // bytes — file is already lean
+
 function resizeOversizeImages() {
   return {
     name: 'mb-resize-oversize-images',
     apply: 'build',
     async closeBundle() {
       const root = path.resolve('dist/images');
-      let count = 0, saved = 0;
+      let count = 0, saved = 0, skipped = 0, errored = 0;
+
+      const optimizeOne = async (full) => {
+        const before = (await stat(full)).size;
+
+        // Cheap metadata read — uses a small sharp instance we tear down.
+        let metaInstance = sharp(full, { failOn: 'none' });
+        let meta;
+        try {
+          meta = await metaInstance.metadata();
+        } finally {
+          if (typeof metaInstance.destroy === 'function') metaInstance.destroy();
+        }
+
+        // Early-out if nothing to do.
+        if ((!meta.width || meta.width <= MAX_WIDTH) && before < SKIP_IF_UNDER) {
+          skipped++;
+          return;
+        }
+
+        // Real optimization pipeline — fresh sharp instance, single-use.
+        let pipe = sharp(full, { failOn: 'none' });
+        try {
+          if (meta.width && meta.width > MAX_WIDTH) {
+            pipe = pipe.resize({ width: MAX_WIDTH, withoutEnlargement: true });
+          }
+          const isJpg = /\.jpe?g$/i.test(full);
+          const encoded = isJpg
+            ? pipe.jpeg({ quality: 80, progressive: true, mozjpeg: true })
+            : pipe.png({ compressionLevel: 9, palette: true });
+
+          const buf = await encoded.toBuffer();
+          if (buf.length < before) {
+            await writeFile(full, buf);
+            saved += before - buf.length;
+            count++;
+            const pct = ((1 - buf.length / before) * 100).toFixed(0);
+            const kb = (s) => (s / 1024).toFixed(0) + ' KB';
+            console.log(`  ↳ ${path.relative('dist', full)}: ${kb(before)} → ${kb(buf.length)} (-${pct}%)`);
+          } else {
+            skipped++;
+          }
+        } finally {
+          if (typeof pipe.destroy === 'function') pipe.destroy();
+        }
+      };
+
       const walk = async (dir) => {
         let entries;
         try { entries = await readdir(dir, { withFileTypes: true }); }
@@ -35,114 +106,67 @@ function resizeOversizeImages() {
           if (e.isDirectory()) { await walk(full); continue; }
           if (!/\.(jpe?g|png)$/i.test(e.name)) continue;
           try {
-            const before = (await stat(full)).size;
-            const meta = await sharp(full).metadata();
-            // Skip if already within target width AND already small.
-            if ((!meta.width || meta.width <= MAX_WIDTH) && before < 350_000) continue;
-            let pipe = sharp(full, { failOn: 'none' });
-            if (meta.width && meta.width > MAX_WIDTH) {
-              pipe = pipe.resize({ width: MAX_WIDTH, withoutEnlargement: true });
-            }
-            const isJpg = /\.jpe?g$/i.test(e.name);
-            const buf = await (isJpg
-              ? pipe.jpeg({ quality: 80, progressive: true, mozjpeg: true })
-              : pipe.png({ compressionLevel: 9, palette: true })
-            ).toBuffer();
-            if (buf.length < before) {
-              await writeFile(full, buf);
-              saved += before - buf.length;
-              count++;
-              const pct = ((1 - buf.length / before) * 100).toFixed(0);
-              const kb = (s) => (s / 1024).toFixed(0) + ' KB';
-              console.log(`  ↳ ${path.relative('dist', full)}: ${kb(before)} → ${kb(buf.length)} (-${pct}%)`);
-            }
+            await optimizeOne(full);
           } catch (err) {
-            console.warn(`  ⚠ skipped ${full}: ${err.message}`);
+            errored++;
+            console.warn(`  ⚠ skipped ${path.relative('dist', full)}: ${err.message}`);
           }
         }
       };
+
       await walk(root);
       const mb = (saved / 1024 / 1024).toFixed(2);
-      console.log(`\n📐 resizeOversizeImages: ${count} files, saved ${mb} MB`);
+      console.log(
+        `\n📐 resizeOversizeImages: ${count} written, ${skipped} skipped, ${errored} errored, saved ${mb} MB`
+      );
     },
   };
 }
 
-// Vite config — single-page app with the existing index.html as the entry.
-// The React plugin handles JSX compilation at BUILD time (not in the browser),
-// which is the entire reason for this build step.
-//
-// vite-plugin-image-optimizer runs sharp on every JPEG/PNG/SVG that flows
-// through the build OR sits in public/. With `includePublic: true` it walks
-// public/images/ and re-encodes each photo aggressively. The settings below
-// were tuned for big residential exterior photos: mozjpeg at q:78 (visually
-// indistinguishable from q:95 source for outdoor photos), progressive scan
-// so previews paint earlier on slow connections.
-//
-// `base: './'` produces relative asset paths in dist/index.html so the build
-// can be deployed to a sub-path or opened from a static host without rewrite.
-//
-// `build.minify: 'esbuild'` (the default) keeps the bundle small and the build
-// fast. `build.target: 'es2020'` matches modern browsers + iOS Safari 14+.
-//
-// `build.assetsInlineLimit: 0` keeps all assets as external files (no base64
-// inlining) so the existing /images/ structure stays intact.
-
+/* ----------------------------------------------------------------------
+ * Vite config
+ * ----------------------------------------------------------------------
+ * Build pipeline:
+ *   vite build
+ *     → copies public/* to dist/*
+ *     → vite-plugin-image-optimizer compresses (in-place re-encode only)
+ *     → resizeOversizeImages plugin downsizes huge JPEGs to MAX_WIDTH
+ *
+ * `base: './'` produces relative asset paths so dist/ can be hosted from
+ * any subpath. `build.target: 'es2020'` matches modern browsers + iOS 14+.
+ * --------------------------------------------------------------------*/
 export default defineConfig({
   base: './',
   plugins: [
     react(),
     ViteImageOptimizer({
-      /* Process JPGs and PNGs that live in public/ — that's where the
-         actual ~57 MB of source photos sits. Without this flag the plugin
-         would only see images explicitly imported into the JS bundle. */
       includePublic: true,
       logStats: true,
 
-      /* JPEG: mozjpeg encoder gives ~10% smaller files than libjpeg at the
-         same quality. q:78 is the sweet spot for outdoor cleaning photos —
-         no visible artefacts on residential exteriors, paver textures, or
-         roof tiles. progressive=true so the browser shows a low-res
-         preview while the full image streams. */
-      jpeg: {
-        quality: 78,
-        progressive: true,
-        mozjpeg: true,
-      },
-      jpg: {
-        quality: 78,
-        progressive: true,
-        mozjpeg: true,
-      },
+      /* JPEG: mozjpeg encoder, q:78 — visually identical to source for
+         outdoor cleaning photos. progressive=true so the browser paints
+         a low-res preview while the full image streams. */
+      jpeg: { quality: 78, progressive: true, mozjpeg: true },
+      jpg:  { quality: 78, progressive: true, mozjpeg: true },
 
-      /* PNG: lossless palette optimization. Logo + UI graphics stay crisp. */
-      png: {
-        quality: 80,
-        compressionLevel: 9,
-        palette: true,
-      },
+      /* PNG: lossless palette + max zlib compression. */
+      png:  { quality: 80, compressionLevel: 9, palette: true },
 
-      /* WebP: ~30% smaller than JPEG. Modern browsers will get these
-         automatically when served via a CDN that respects Accept headers
-         or a <picture> tag is added later. */
-      webp: {
-        quality: 80,
-        lossless: false,
-      },
+      /* WebP and AVIF intentionally disabled.
+         Reasons:
+         1) AVIF encoding is extremely CPU- and memory-heavy. With
+            sharp pinned to 1 thread (above) it works, but pre-fix this
+            was a likely SIGBUS trigger.
+         2) Nothing on the page actually consumes the .webp/.avif siblings
+            — our <img> tags reference the .jpeg directly, with no
+            <picture> source-set fallback. Generating them is wasted disk
+            + build time. Re-enable if/when we wire up <picture>. */
 
-      /* AVIF: even smaller than WebP, supported in modern Safari/Chrome. */
-      avif: {
-        quality: 75,
-        lossless: false,
-      },
-
-      /* Cache so repeated `npm run build` doesn't re-encode unchanged files. */
+      /* Cache so repeated `npm run build` doesn't re-encode unchanged
+         files. Speeds incremental builds from ~30 s → ~5 s. */
       cache: true,
       cacheLocation: 'node_modules/.cache/vite-plugin-image-optimizer',
     }),
-    /* Resize pass — runs after vite-plugin-image-optimizer at closeBundle.
-       Handles the big photos that the upstream plugin can only modestly
-       compress because they're already decent JPEGs but vastly oversized. */
     resizeOversizeImages(),
   ],
   build: {
@@ -150,7 +174,6 @@ export default defineConfig({
     assetsInlineLimit: 0,
     rollupOptions: {
       output: {
-        // Predictable filenames help when wiring up CDN cache headers.
         entryFileNames: 'assets/main-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]',
