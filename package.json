@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "cd dist && git init -q && git checkout -B gh-pages -q && git add -A && git -c user.email=\"deploy@local\" -c user.name=\"deploy bot\" commit -q -m \"Deploy $(date -u +%FT%TZ)\" && git push -fq $(cd .. && git remote get-url origin) HEAD:gh-pages && cd .. && rm -rf dist/.git && echo Deploy OK"
   },
   "dependencies": {
     "react": "^18.3.1",
