@@ -2239,10 +2239,37 @@ const ProcessSection = () => {
           Simple, transparent process. No surprise costs. No high-pressure tactics — in every sense of the word.
         </p>
 
-        {/* Steps grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-0 relative">
+        {/* Steps — swipeable carousel on mobile, 3-column grid on md+.
+            MOBILE: flex + overflow-x-auto + scroll-snap so the cards
+            scroll horizontally one-by-one. Negative -mx-4 + inner px-4
+            extends the scroller edge-to-edge while keeping the first/
+            last cards aligned with the section's normal text gutter
+            (so the next card peeks in from the right).
+            DESKTOP (md+): reverts to grid-cols-3 — all 3 cards visible
+            side-by-side, no scroll. Snap classes turn off automatically
+            via md:snap-none. Scrollbar hidden on mobile for a clean
+            look (still scrollable via swipe).  */}
+        <div
+          className="
+            flex md:grid md:grid-cols-3
+            gap-4 md:gap-0
+            overflow-x-auto md:overflow-visible
+            snap-x snap-mandatory md:snap-none
+            pb-4 md:pb-0
+            -mx-4 px-4 sm:-mx-6 sm:px-6 md:mx-0 md:px-0
+            [scrollbar-width:none] [&::-webkit-scrollbar]:hidden
+            relative
+          "
+        >
           {steps.map((s, i) => (
-            <div key={s.num} className="flex flex-col md:flex-row">
+            <div
+              key={s.num}
+              className="
+                flex flex-col md:flex-row
+                snap-center shrink-0
+                w-[85%] sm:w-[70%] md:w-auto md:shrink-0
+              "
+            >
               {/*
                 Step card — sigue el sistema de diseño:
                 · bg solid white
