@@ -136,7 +136,13 @@ function resizeOversizeImages() {
  * any subpath. `build.target: 'es2020'` matches modern browsers + iOS 14+.
  * --------------------------------------------------------------------*/
 export default defineConfig({
-  base: './',
+  /* GitHub Pages serves this site at https://Facuz272.github.io/MBprueba2/
+     so every Vite-managed absolute asset URL (the hashed JS bundle, the
+     mb-logo preload, etc.) needs to be prefixed with /MBprueba2/. JSX
+     template-literal paths like `./images/foo.jpeg` are unaffected by
+     this setting — they resolve relative to the page URL at runtime,
+     which on GH Pages already includes /MBprueba2/. */
+  base: '/MBprueba2/',
   plugins: [
     react(),
     ViteImageOptimizer({
