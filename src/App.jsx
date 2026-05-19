@@ -2877,13 +2877,20 @@ const BeforeAfterSlider = ({ before, after, beforeAlt, afterAlt }) => {
       </div>
 
       <div className="absolute top-0 bottom-0 z-10 pointer-events-none" style={{ left: `${position}%`, transform: "translateX(-50%)" }}>
-        <div className="w-0.5 h-full" style={{ background: "var(--orange)", boxShadow: "0 0 20px rgba(255,107,31,0.7)" }} />
+        {/* Divider line: pink con glow rosa (antes era naranja).
+            Coincide con el sistema de branding pink/teal de la página. */}
+        <div className="w-0.5 h-full" style={{ background: "var(--brand-pink)", boxShadow: "0 0 20px rgba(199,90,159,0.7)" }} />
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full flex items-center justify-center pointer-events-auto cursor-ew-resize shadow-2xl"
-          style={{ background: "rgba(13,79,114,0.85)", border: "2px solid var(--orange)", backdropFilter: "blur(8px)" }}
+          /* Handle: bg blanco puro + ring rosa, reemplaza el navy-translúcido
+             + ring naranja anterior. backdropFilter no aplica sobre blanco
+             solid pero se mantiene como no-op por si en el futuro se hace
+             semi-transparente. */
+          style={{ background: "#FFFFFF", border: "2px solid var(--brand-pink)", backdropFilter: "blur(8px)" }}
           aria-hidden="true"
         >
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          {/* Arrows: stroke pink para combinar con el divider y el ring. */}
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="var(--brand-pink)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="9 18 3 12 9 6" />
             <polyline points="15 6 21 12 15 18" />
           </svg>
