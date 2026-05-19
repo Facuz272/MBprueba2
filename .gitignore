@@ -19,3 +19,6 @@ dist/
 
 # Loose solar-panel drops at project root — canonical copies are in public/images/solar panel/
 /solar panel/
+
+# Loose roof-softwash drops at project root — canonical copies are in public/images/roof softwash/
+/roof softwash/
