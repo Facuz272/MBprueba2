@@ -2987,8 +2987,13 @@ const ResultsSection = () => {
     { tabId: "paver-sealing",     title: "Backyard patio weed removal & seal", subtitle: "Before / After", before: `${IMG}/paver/paver antes 3 .jpeg`, after: `${IMG}/paver/paver despues 3 .jpeg` },
 
     /* ---------- Gutter Clean Out (2 slides) ---------- */
-    { tabId: "gutter-cleaning",   title: "Cedar fence reset",          subtitle: "Coconut Grove, FL", before: `${IMG}/fence-before.jpg`,               after: `${IMG}/fence-after.jpg` },
-    { tabId: "gutter-cleaning",   title: "Gutter line clear-out",      subtitle: "South Miami, FL",   before: `${IMG}/gutter-clean-out.jpg`,           after: `${IMG}/fence-after.jpg` },
+    /* ---------- Gutter Clean Out (1 slide — foto real del cliente) ----------
+       Una sola entrada por pedido del cliente. El carousel detecta
+       totalSlides === 1 y oculta las arrows + el counter automáticamente.
+       Filenames preserved exactly as uploaded: "Gutter antes .jpeg" has a
+       trailing space before the extension; "Gutter despues.jpeg" does not.
+       The browser URL-encodes the space at fetch time. */
+    { tabId: "gutter-cleaning",   title: "Gutter line clear-out",      subtitle: "Miami-Dade, FL",    before: `${IMG}/Gutter antes .jpeg`,             after: `${IMG}/Gutter despues.jpeg` },
   ];
 
   const [activeTabId, setActiveTabId] = useState(tabs[0].id);
