@@ -2486,7 +2486,7 @@ const OurServices = () => {
        lighting, etc. Es la red de seguridad para "todo lo demás". */
     {
       title: "Much More",
-      copy: "From specialized rust removal and dumpster pad sanitation to deck restoration and holiday lighting. If it's outside and needs care, we have the specialized equipment and expertise to handle it. No project is too unique for our team.",
+      copy: "From the smallest detailing job to massive community projects, we do it all. Don’t stress over the grime—just give us a call and we’ll take complete care of all your exterior cleaning and specialty softwashing needs.",
       icon: ServiceIcons.much,
       img: `${IMG}/Much More.jpeg`,
       alt: "MB Softwash additional specialized cleaning services.",
@@ -3573,7 +3573,10 @@ function App() {
           subtext="Call us — we quote luxury exterior projects across all of South Florida."
           variant="pink"
           topColor="#0D4F72"
-          bottomColor="#1A7A9A"
+          /* bottomColor: white (was #1A7A9A light teal). El wedge inferior
+             del banner ahora termina en blanco puro — diagonal cleaner
+             visual fade-out per pedido del cliente. */
+          bottomColor="#FFFFFF"
         />
         <FAQ />
         <QuoteForm />
