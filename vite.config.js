@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { ViteImageOptimizer } from 'vite-plugin-image-optimizer';
 import sharp from 'sharp';
-import { readdir, stat, writeFile } from 'node:fs/promises';
+import { readdir, stat, writeFile, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
 
 /* ----------------------------------------------------------------------
@@ -83,7 +83,24 @@ function resizeOversizeImages() {
 
           const buf = await encoded.toBuffer();
           if (buf.length < before) {
-            await writeFile(full, buf);
+            /* ATOMIC WRITE: vite-plugin-image-optimizer can still be
+               flushing its own output to the same destination at this
+               point in closeBundle. A plain writeFile(full, buf) can
+               race with that flush and end up truncated to 0 bytes
+               (observed reliably on a 3840x5120 JPEG). Writing to a
+               unique temp path and rename-ing is atomic on POSIX
+               filesystems — the rename swaps the inode, so the final
+               file is either the old one or the full new one, never
+               an empty intermediate. */
+            const tmp = `${full}.opt-${process.pid}-${Date.now()}.tmp`;
+            try {
+              await writeFile(tmp, buf);
+              await rename(tmp, full);
+            } catch (renameErr) {
+              // Best-effort cleanup if the rename failed mid-flight.
+              try { await unlink(tmp); } catch {}
+              throw renameErr;
+            }
             saved += before - buf.length;
             count++;
             const pct = ((1 - buf.length / before) * 100).toFixed(0);
