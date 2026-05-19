@@ -1484,10 +1484,11 @@ const Hero = () => {
         muted
         playsInline
         preload="auto"
-        /* poster: still cinematic frame que se pinta INSTANTÁNEAMENTE
-           mientras el MP4 buffea. Mejora LCP en conexiones lentas y
-           evita el "flash negro" del 1er paint. */
-        poster={`${IMG}/roof-tile-cinematic.jpg`}
+        /* poster attribute removed — the still frame flashed briefly
+           before the MP4 took over, creating a jarring visual
+           transition. preload="auto" already kicks off the video
+           fetch early enough that the gap is small; the dark hero
+           overlay covers any momentary black frame. */
         aria-hidden="true"
         style={{
           position: "absolute",

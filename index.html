@@ -242,10 +242,10 @@
 
   <!-- Preload above-the-fold assets:
        - mb-logo.png — first paint, top-left of the header.
-       - roof-tile-cinematic.jpg — <video poster>, paints instantly behind
-         the hero text while the MP4 buffers (cinematic still backdrop). -->
+       (roof-tile-cinematic.jpg preload removed — was only used as the
+        hero <video poster>, which we removed for a cleaner visual
+        transition into the MP4 playback.) -->
   <link rel="preload" as="image" href="./images/mb-logo.png" fetchpriority="high" />
-  <link rel="preload" as="image" href="./images/roof-tile-cinematic.jpg" fetchpriority="high" />
 
   <!-- GSAP core + plugins (todos gratuitos desde adquisición de Webflow) -->
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
