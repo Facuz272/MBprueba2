@@ -3006,8 +3006,14 @@ const ResultsSection = () => {
        Assets en ./images/before and after roof/ con nombres conservados tal
        cual los subió el cliente (incluye el typo "roof despues3.jpeg" sin
        espacio antes del 3). El browser URL-encodea los espacios al fetch. */
-    { tabId: "roof-softwash",     title: "Tile roof restoration",          subtitle: "Miami-Dade, FL", before: `${IMG}/before and after roof/roof antes 1.jpeg`, after: `${IMG}/before and after roof/roof despues 1.jpeg` },
-    { tabId: "roof-softwash",     title: "Deep cleaning for algae & stains", subtitle: "Miami-Dade, FL", before: `${IMG}/before and after roof/roof antes 2.jpeg`, after: `${IMG}/before and after roof/roof despues 2.jpeg` },
+    /* ---------- Roof Softwash (3 slides — fotos reales del cliente) ----------
+       Jobs 1 + 2 use the new ./images/roof softwash/ asset folder.
+       Job 3 still references the older ./images/before and after roof/
+       location — its photos haven't been re-shot. Mind that Job 2's
+       "before" filename has a TRAILING SPACE before .jpeg (verified
+       via hex dump). Case-sensitive paths on Linux / gh-pages. */
+    { tabId: "roof-softwash",     title: "Tile roof restoration",          subtitle: "Before / After", before: `${IMG}/roof softwash/roof antes 1.jpeg`,        after: `${IMG}/roof softwash/roof despues 1.jpeg` },
+    { tabId: "roof-softwash",     title: "Deep cleaning for algae & stains", subtitle: "Before / After", before: `${IMG}/roof softwash/roof antes 2 .jpeg`,       after: `${IMG}/roof softwash/roof despues 2.jpeg` },
     { tabId: "roof-softwash",     title: "Complete roof revival",          subtitle: "Miami-Dade, FL", before: `${IMG}/before and after roof/roof antes 3.jpeg`, after: `${IMG}/before and after roof/roof despues3.jpeg` },
 
     /* ---------- Pressure Cleaning (3 slides — fotos reales del cliente) ----------
