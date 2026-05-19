@@ -153,13 +153,17 @@ function resizeOversizeImages() {
  * any subpath. `build.target: 'es2020'` matches modern browsers + iOS 14+.
  * --------------------------------------------------------------------*/
 export default defineConfig({
-  /* GitHub Pages serves this site at https://Facuz272.github.io/MBprueba2/
-     so every Vite-managed absolute asset URL (the hashed JS bundle, the
-     mb-logo preload, etc.) needs to be prefixed with /MBprueba2/. JSX
-     template-literal paths like `./images/foo.jpeg` are unaffected by
-     this setting — they resolve relative to the page URL at runtime,
-     which on GH Pages already includes /MBprueba2/. */
-  base: '/MBprueba2/',
+  /* Custom domain (mbsoftwashmiami.com) lives at the DOMAIN ROOT, so
+     every Vite-managed absolute asset URL must be prefixed with `/`
+     (no subpath). Previously this was '/MBprueba2/' for the GH Pages
+     project URL (https://Facuz272.github.io/MBprueba2/); after the
+     CNAME was wired up the site serves at the apex domain instead,
+     and asset paths like /MBprueba2/assets/main-[hash].js 404'd —
+     producing the infinite "LOADING..." spinner because the JS bundle
+     never loaded.
+     A `public/CNAME` file is shipped on every build so the custom
+     domain configuration on GitHub Pages survives each redeploy. */
+  base: '/',
   plugins: [
     react(),
     ViteImageOptimizer({
