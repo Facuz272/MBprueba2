@@ -16,3 +16,6 @@ dist/
 
 # Agent harness worktrees — never track from this side of the repo.
 .claude/worktrees/
+
+# Loose solar-panel drops at project root — canonical copies are in public/images/solar panel/
+/solar panel/
